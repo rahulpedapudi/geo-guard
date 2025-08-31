@@ -1,3 +1,1 @@
-# project_sih
-
-A new Flutter project.
+# Smart Tourist Safety Monitoring & Incident Response System
