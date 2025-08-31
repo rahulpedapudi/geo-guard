@@ -18,6 +18,7 @@ dependencies:
   geolocator: ^14.0.2
   geocoding: ^4.0.0
   http: ^1.2.1
+  contacts_service: ^0.6.3
 
 dev_dependencies:
   flutter_test:
