@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,6 +24,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final MapController _mapController = MapController();
+  StreamSubscription<Position>? _positionStream;
+
   /// The user's current position.
   Position? _currentPosition;
 
@@ -45,74 +50,158 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Gets the user's current location and updates the state.
   Future<void> _getLocation() async {
+    if (!mounted) return; // Avoid calling setState on unmounted widgets
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    // Cancel any existing stream subscription
+    await _positionStream?.cancel();
+    _positionStream = null;
+
     try {
       final position = await getCurrentLocation();
 
-      if (position?.latitude == 0.0 && position?.longitude == 0.0) {
+      if (!mounted) return;
+
+      if (position == null ||
+          (position.latitude == 0.0 && position.longitude == 0.0)) {
         debugPrint("⚠️ Invalid position coordinates.");
         setState(() {
-          _isLoading = false;
-          _errorMessage = "Invalid location data received.";
+          _errorMessage = "Could not fetch location. Please try again.";
           _currentCity = "Location Error";
-          _currentRegion = "Please try again";
+          _currentRegion = "Enable permissions and refresh";
         });
         return;
       }
 
-      // Update position first
-      setState(() {
-        _currentPosition = position;
-        _isLoading = false;
-      });
+      // Update position and address
+      await _updatePositionAndAddress(position);
 
-      // Try to get address
-      try {
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          position!.latitude,
-          position.longitude,
-        ).timeout(const Duration(seconds: 10), onTimeout: () => <Placemark>[]);
-
-        if (placemarks.isNotEmpty) {
-          final placemark = placemarks.first;
-          setState(() {
-            _currentCity =
-                placemark.locality ??
-                placemark.subAdministrativeArea ??
-                "Unknown city";
-            _currentRegion =
-                placemark.administrativeArea ??
-                placemark.country ??
-                "Unknown region";
-          });
-          debugPrint("✅ Address: $_currentCity, $_currentRegion");
-        } else {
-          setState(() {
-            _currentCity = "Lat: ${position.latitude.toStringAsFixed(4)}";
-            _currentRegion = "Lng: ${position.longitude.toStringAsFixed(4)}";
-          });
-          debugPrint("⚠️ No address found, showing coordinates");
-        }
-      } catch (e) {
-        debugPrint("⚠️ Geocoding failed: $e");
+      // Set up the new position stream
+      _setupPositionStream();
+    } catch (e) {
+      debugPrint("❌ Error in _getLocation: $e");
+      if (mounted) {
         setState(() {
-          _currentCity = "Lat: ${position?.latitude.toStringAsFixed(4)}";
-          _currentRegion = "Lng: ${position?.longitude.toStringAsFixed(4)}";
+          _errorMessage = " ";
+          _currentCity = "Error";
+          _currentRegion = "Please check permissions";
         });
       }
-    } catch (e) {
-      debugPrint("❌ Error getting location: $e");
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "Location error: ${e.toString()}";
-        _currentCity = "Error";
-        _currentRegion = "Please check permissions";
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  /// Updates the state with the new position and fetches the address.
+  Future<void> _updatePositionAndAddress(Position position) async {
+    if (!mounted) return;
+
+    // Update the current position. This will trigger a rebuild, and the map
+    // will be centered correctly on the new position via the `mapCenter` getter.
+    setState(() {
+      _currentPosition = position;
+    });
+
+    try {
+      // Fetch the address from the coordinates.
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      ).timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+
+      if (placemarks.isNotEmpty) {
+        final placemark = placemarks.first;
+        setState(() {
+          _currentCity =
+              placemark.locality ??
+              placemark.subAdministrativeArea ??
+              "Unknown city";
+          _currentRegion =
+              placemark.administrativeArea ??
+              placemark.country ??
+              "Unknown region";
+        });
+      } else {
+        // If no address is found, fall back to showing coordinates.
+        _showCoordinates(position);
+      }
+    } catch (e) {
+      debugPrint("⚠️ Geocoding failed: $e");
+      if (mounted) {
+        _showCoordinates(position);
+      }
+    }
+  }
+
+  /// Sets up the position stream for continuous location updates.
+  void _setupPositionStream() {
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 20, // meters
+    );
+
+    _positionStream =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position? position) {
+            if (position != null && mounted) {
+              // When a new position is received from the stream, update the state
+              // and manually move the map to the new location.
+              setState(() {
+                _currentPosition = position;
+              });
+
+              _mapController.move(
+                LatLng(position.latitude, position.longitude),
+                _mapController.camera.zoom,
+              );
+
+              // To avoid excessive geocoding, only update the address if the
+              // user has moved a significant distance.
+              if (_currentPosition == null ||
+                  Geolocator.distanceBetween(
+                        _currentPosition!.latitude,
+                        _currentPosition!.longitude,
+                        position.latitude,
+                        position.longitude,
+                      ) >
+                      20) {
+                _updatePositionAndAddress(position);
+              }
+            }
+          },
+          onError: (error) {
+            debugPrint("❌ Position stream error: $error");
+            if (mounted) {
+              setState(() {
+                _errorMessage = "Location tracking failed.";
+              });
+            }
+          },
+        );
+  }
+
+  /// Fallback to show coordinates when geocoding fails.
+  void _showCoordinates(Position position) {
+    setState(() {
+      _currentCity = "Lat: ${position.latitude.toStringAsFixed(4)}";
+      _currentRegion = "Lng: ${position.longitude.toStringAsFixed(4)}";
+    });
+  }
+
+  @override
+  void dispose() {
+    _positionStream?.cancel(); // stop updates when page is destroyed
+    super.dispose();
   }
 
   /// The center of the map.
@@ -137,6 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // The map layer.
           else
             MapLayerWidget(
+              mapController: _mapController,
               mapCenter: _mapCenter,
               currentPosition: _currentPosition != null
                   ? LatLng(

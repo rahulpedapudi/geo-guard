@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,17 +14,21 @@ class MapLayerWidget extends StatelessWidget {
   /// The user's current location.
   final LatLng? currentPosition;
 
+  final MapController mapController;
+
   /// Creates a new [MapLayerWidget] widget.
   const MapLayerWidget({
     super.key,
     required this.mapCenter,
     this.currentPosition,
+    required this.mapController,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return FlutterMap(
+      mapController: mapController,
       options: MapOptions(
         initialCenter: mapCenter,
         initialZoom: 13.0,

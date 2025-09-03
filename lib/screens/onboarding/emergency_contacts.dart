@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:contacts_service/contacts_service.dart';
+// import 'package:contacts_service/contacts_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class EmergencyContacts extends StatefulWidget {
@@ -24,11 +25,10 @@ class _EmergencyContactsState extends State<EmergencyContacts> {
     var status = await Permission.contacts.request();
     if (status.isGranted) {
       try {
-        final Contact? contact =
-            await ContactsService.openDeviceContactPicker();
-        if (contact != null && contact.phones!.isNotEmpty) {
+        final Contact? contact = await FlutterContacts.openExternalPick();
+        if (contact != null && contact.phones.isNotEmpty) {
           setState(() {
-            _emergencyContacts.add(contact.phones!.first.value ?? '');
+            _emergencyContacts.add(contact.name.first);
           });
         }
       } catch (e) {
