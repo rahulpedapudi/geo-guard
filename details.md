@@ -3,29 +3,31 @@
   - Status Card? ("Status: You are Safe")
   - Quick Access buttons (Start Live Share, Settings etc)
 
-[] auto refresh every 10secs
+[x] auto refresh every
 [] find logos
 [] better ux
 
-
 # geofencing
+
 - logic must happen on the clients device.
 - server maintains a database of geofence coordinates.
 - cache this list of zones.
-- apps background service checks the phones current gps against the list, if there is a match, it triggers a local notification. 
+- apps background service checks the phones current gps against the list, if there is a match, it triggers a local notification.
 
 # ai anomaly detection (must be scalable and privacy focused)
+
 =============================================================================
 
 # client-side (on the phone)
+
 1. fetch geofence data from the server and caches it locally.
 2. apps background service gets the location from the native gps api.
 3. checks the location against the local geofence
-    - if user enters a zone, it triggers a local notification.
+   - if user enters a zone, it triggers a local notification.
 4. (anomaly detection)
 
-
 # emergency event
+
 1. event is triggered (e.g.., SOS Button)
 2. client sends { userID, location, alertType? } to the backend server.
 3. save the incident details to the db.
@@ -34,9 +36,8 @@
 6. sends request to FCM with the payload for user's emergency contacts and authorities.
 7. FCM pushes the alert to the relevant devices.
 
-
-
 # Flow - 1 (Tourist Onboarding & Digital ID creation)
+
 tourist --> `registration info` --> mobile app
 
 mobile app --> `secure api request` --> api gateway
@@ -66,8 +67,8 @@ flowchart LR
 
 ```
 
-
 # Flow - 2 (geofence)
+
 ### no location data is sent to the server during this entire process. the server only provides the map of unsafe areas, not the user's location.
 
 mobile app (on launch) --> `request for geofence data` --> api --> geoservice
@@ -92,8 +93,8 @@ flowchart LR
     M -->|If Inside Zone| N[Local Notification]
 ```
 
-
 # Flow - 3 (Manual SOS/ Emergency Alerts)
+
 tourist --> `presses SOS` -- > mobile app
 
 mobile app --> `API request {userID, Location, Timestamp}` --> API gateway
@@ -123,8 +124,8 @@ flowchart LR
     FCM --> C[Contacts & Authorities]
 ```
 
-
 # Flow - 4 (live tracking)
+
 Tourist --> `Taps 'Start Live Share'` --> Mobile App.
 
 Mobile App --> `Establishes secure WebSocket connection` --> Real-time Service.
@@ -139,9 +140,8 @@ Real-time Service --> `Receives new coordinates from Tourist` --> Instantly broa
 
 Emergency Contact's App --> `Receives new coordinates` --> Updates the marker position on the map UI.
 
-
-
 # Flow 5 (authorities managing geofence zones)
+
 Authority Personnel --> `Logs in and draws a new zone on the map` --> Authorities Web Portal.
 
 Authorities Web Portal --> `API Request (Polygon Coordinates, Zone Name, Risk Level)` --> API Gateway.
@@ -161,17 +161,14 @@ flowchart LR
     Geo -->|Return Success| P
 ```
 
-
-
 # Flow 6 (on device anomaly detection)
 
 # Flow 7 (server side AI anomaly detection)
 
-
 ====================================================================
 
-
 ### mermaid.js
+
 ```mermaid
 flowchart TB
 
@@ -213,15 +210,3 @@ GeoService --> DB
 
 IdentityService --> Blockchain
 ```
-
-
-
-
-
-
-
-
-
-
-
-

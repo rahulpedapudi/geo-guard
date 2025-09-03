@@ -16,14 +16,14 @@ import 'package:project_sih/widgets/web_warning.dart';
 ///
 /// This screen displays a map with the user's current location, a card with
 /// location information, and an SOS button.
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class MapDisplay extends StatefulWidget {
+  const MapDisplay({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MapDisplay> createState() => _MapDisplayState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _MapDisplayState extends State<MapDisplay> {
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _positionStream;
 
@@ -109,6 +109,13 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _currentPosition = position;
     });
+
+    // The geocoding package does not work on the web without a Google Maps API key.
+    // As a fallback, we will just show the coordinates on the web.
+    if (kIsWeb) {
+      _showCoordinates(position);
+      return;
+    }
 
     try {
       // Fetch the address from the coordinates.
