@@ -1,5 +1,6 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:project_sih/screens/onboarding/emergency_contacts.dart';
 // import 'package:project_sih/services/inactivity_service.dart';
 
 /// A screen that allows the user to configure the app's settings.
@@ -46,7 +47,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               },
-              child: Text('Save'),
+              child: Text('Save Inactivity Timer'),
+            ),
+            const Divider(),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EmergencyContacts(
+                      onFinish: () => Navigator.pop(context),
+                      onPrevious: () => Navigator.pop(context),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Update Emergency Contacts'),
             ),
           ],
         ),

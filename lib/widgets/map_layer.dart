@@ -31,14 +31,14 @@ class MapLayerWidget extends StatelessWidget {
       mapController: mapController,
       options: MapOptions(
         initialCenter: mapCenter,
-        initialZoom: 13.0,
+        initialZoom: 15.0,
         minZoom: 3.0,
         maxZoom: 18.0,
       ),
       children: [
         // The OpenStreetMap tile layer.
         TileLayer(
-          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           subdomains: const ['a', 'b', 'c'],
           tileProvider: CustomTileProvider(
             userAgent: 'dev.rahul.project_sih/0.1.0',

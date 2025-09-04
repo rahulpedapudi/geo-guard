@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:project_sih/models/emergency_contact.dart';
 import 'package:project_sih/services/location_service.dart';
 
 /// The main dashboard of the app, providing a quick overview of the user's safety status.
@@ -166,11 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       value: _isLoading ? 'Loading...' : _currentAddress,
                     ),
                     const Divider(),
-                    _buildInfoRow(
-                      context,
-                      label: 'Emergency Contacts:',
-                      value: '2 contacts ready', // Hardcoded as requested
-                    ),
+                    _buildEmergencyContactsList(),
                   ],
                 ),
               ),
@@ -223,12 +221,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// A helper widget to build the list of emergency contacts.
+  Widget _buildEmergencyContactsList() {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<EmergencyContact>('emergency_contacts').listenable(),
+      builder: (context, Box<EmergencyContact> box, _) {
+        final contacts = box.values.toList();
+        if (contacts.isEmpty) {
+          return _buildInfoRow(
+            context,
+            label: 'Emergency Contacts:',
+            value: 'No contacts added yet.',
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Emergency Contacts:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: contacts.length,
+              itemBuilder: (context, index) {
+                final contact = contacts[index];
+                return ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(contact.name),
+                  subtitle: Text(contact.phoneNumber),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// A helper widget to build a row of information with a label and a value.
   Widget _buildInfoRow(
-    BuildContext context, {
+    BuildContext context,
+    {
     required String label,
     required String value,
-  }) {
+  }
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(

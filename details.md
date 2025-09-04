@@ -4,8 +4,25 @@
   - Quick Access buttons (Start Live Share, Settings etc)
 
 [x] auto refresh every
-[] find logos
-[] better ux
+[ ] find logos
+[ ] better ux
+[ ] core safety
+    [ ] geofencing
+    [ ] alert system
+
+[ ] basic backend
+    - websockets
+    - basic user auth
+    - database
+    
+[ ] authorities web portal
+    
+
+1. Persistence & state management - (hive)
+ - view onboarding only once.
+ - save emergency contacts
+
+
 
 # geofencing
 

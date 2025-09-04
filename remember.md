@@ -1,0 +1,4 @@
+- initial onboarding stores shared_preferences about onboarding complete.
+  - if finished onboarding
+    - prefs.setBool('onboarding_complete', false);
+    - in main.dart we check this preference and display the content accordingly
