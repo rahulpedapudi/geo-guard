@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:hive/hive.dart';
 import 'package:project_sih/models/emergency_contact.dart';
@@ -19,6 +20,7 @@ class EmergencyContacts extends StatefulWidget {
 }
 
 class _EmergencyContactsState extends State<EmergencyContacts> {
+  final _formKey = GlobalKey<FormState>();
   final List<EmergencyContact> _emergencyContacts = [];
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -62,7 +64,7 @@ class _EmergencyContactsState extends State<EmergencyContacts> {
   }
 
   void _addManualContact() {
-    if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
+    if (_formKey.currentState!.validate()) {
       setState(() {
         _emergencyContacts.add(
             EmergencyContact(_nameController.text, _phoneController.text));
@@ -106,21 +108,44 @@ class _EmergencyContactsState extends State<EmergencyContacts> {
               const SizedBox(height: 20),
 
               // Manual Entry
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: "Enter name",
-                  border: OutlineInputBorder(),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: "Enter name",
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: "Enter 10-digit phone number",
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a phone number';
+                        }
+                        if (value.length != 10) {
+                          return 'Phone number must be 10 digits';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: "Enter phone number",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 10),
               ElevatedButton(

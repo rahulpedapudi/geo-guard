@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:project_sih/widgets/custom_tile_provider.dart';
 
 /// A widget that displays the map layer.
 ///
@@ -37,13 +36,19 @@ class MapLayerWidget extends StatelessWidget {
       ),
       children: [
         // The OpenStreetMap tile layer.
+        // TileLayer(
+        //   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        //   subdomains: const ['a', 'b', 'c'],
+        //   tileProvider: CustomTileProvider(
+        //     userAgent: 'dev.rahul.project_sih/0.1.0',
+        //   ),
+        //   maxNativeZoom: 19,
+        // ),
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c'],
-          tileProvider: CustomTileProvider(
-            userAgent: 'dev.rahul.project_sih/0.1.0',
-          ),
-          maxNativeZoom: 19,
+          urlTemplate:
+              "https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=aHpcT8jnkesvnzROguL6",
+          additionalOptions: {'key': 'aHpcT8jnkesvnzROguL6'},
+          userAgentPackageName: 'dev.rahul.project_sih/0.1.0',
         ),
         // A marker that indicates the user's current location.
         if (currentPosition != null)

@@ -3,24 +3,36 @@
   - Status Card? ("Status: You are Safe")
   - Quick Access buttons (Start Live Share, Settings etc)
 
-[x] auto refresh every
+[x] auto refresh 
 [ ] find logos
 [ ] better ux
-[ ] core safety
+
+[ ] core safety !!!!
     [ ] geofencing
     [ ] alert system
-
+        [ ] avoid unexpected SOS button clicks - "long press to activate" 
+        [ ] better ux while adding the emergency contacts
+            [x] add type checks for contacts
+        - SOS + Contacts alert.
+            - how alerts are delivered sms, email push notification, or in app??
+                [ ] Twilio or FCM
+            
+        
 [ ] basic backend
     - websockets
     - basic user auth
     - database
     
 [ ] authorities web portal
-    
+[ ] cache the map for faster loads
 
-1. Persistence & state management - (hive)
+
+[x] Persistence & state management - (hive)
  - view onboarding only once.
- - save emergency contacts
+ - save emergency contacts.
+ 
+The OSM public tile servers are meant for light usage, testing, or personal projects. 
+[x] use a third-pary tile provider 
 
 
 

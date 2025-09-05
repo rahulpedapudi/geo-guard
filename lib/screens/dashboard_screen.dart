@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -6,225 +5,175 @@ import 'package:geolocator/geolocator.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:project_sih/models/emergency_contact.dart';
 import 'package:project_sih/services/location_service.dart';
+import 'package:provider/provider.dart';
 
-/// The main dashboard of the app, providing a quick overview of the user's safety status.
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  /// The user's current position.
-  Position? _currentPosition;
-
-  /// The user's current city and region.
-  String _currentAddress = "Loading...";
-
-  /// Whether the location is currently being fetched.
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _getLocation();
-  }
-
-  /// Gets the user's current location and updates the state.
-  Future<void> _getLocation() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final position = await getCurrentLocation();
-
-      if (!mounted) return;
-
-      if (position != null) {
-        await _updatePositionAndAddress(position);
-      } else {
-        setState(() {
-          _currentAddress = "Location not available";
-        });
-      }
-    } catch (e) {
-      debugPrint("❌ Error in _getLocation: $e");
-      if (mounted) {
-        setState(() {
-          _currentAddress = "Error fetching location";
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Updates the state with the new position and fetches the address.
-  Future<void> _updatePositionAndAddress(Position position) async {
-    if (!mounted) return;
-
-    setState(() {
-      _currentPosition = position;
-    });
-
+  Future<String> _getAddressFromPosition(Position position) async {
     if (kIsWeb) {
-      setState(() {
-        _currentAddress =
-            "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
-      });
-      return;
+      return "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
     }
 
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
+      final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       ).timeout(const Duration(seconds: 10));
 
-      if (!mounted) return;
-
       if (placemarks.isNotEmpty) {
         final placemark = placemarks.first;
-        setState(() {
-          _currentAddress =
-              "${placemark.locality ?? ''}, ${placemark.administrativeArea ?? ''}";
-        });
+        return "${placemark.locality ?? ''}, ${placemark.administrativeArea ?? ''}";
       } else {
-        setState(() {
-          _currentAddress =
-              "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
-        });
+        return "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
       }
     } catch (e) {
       debugPrint("⚠️ Geocoding failed: $e");
-      if (mounted) {
-        setState(() {
-          _currentAddress =
-              "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
-        });
-      }
+      return "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    Position? position;
+    String? errorMessage;
+
+    try {
+      position = Provider.of<Position?>(context);
+    } on LocationPermissionException catch (e) {
+      errorMessage = e.message;
+    } catch (e) {
+      errorMessage = "An unexpected error occurred.";
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('GeoGuard'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Main Status Card
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Status: Safe ✅',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'GeoGuard is active in the background. Your location remains private.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    Text(
-                      'Status: Safe ✅',
+              const SizedBox(height: 24),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      if (errorMessage != null)
+                        _buildInfoRow(
+                          context,
+                          label: 'Current Area:',
+                          value: errorMessage,
+                          valueColor: Theme.of(context).colorScheme.error,
+                        )
+                      else
+                        FutureBuilder<String>(
+                          future: position != null
+                              ? _getAddressFromPosition(position)
+                              : Future.value("Loading..."),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return _buildInfoRow(
+                                context,
+                                label: 'Current Area:',
+                                value: 'Loading...',
+                              );
+                            }
+                            return _buildInfoRow(
+                              context,
+                              label: 'Current Area:',
+                              value: snapshot.data ?? "Not available",
+                            );
+                          },
+                        ),
+                      const Divider(),
+                      _buildEmergencyContactsList(),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Column(
+                children: [
+                  const Text(
+                    'In an emergency, press and hold.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final locationText = position != null
+                          ? "Location: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}"
+                          : "Location: Not available";
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('SOS alert sent!\n$locationText'),
+                          duration: const Duration(seconds: 3),
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(64),
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text(
+                      'SOS',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 48,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'GeoGuard is active in the background. Your location remains private.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Contextual Information Section
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      context,
-                      label: 'Current Area:',
-                      value: _isLoading ? 'Loading...' : _currentAddress,
-                    ),
-                    const Divider(),
-                    _buildEmergencyContactsList(),
-                  ],
-                ),
-              ),
-            ),
-            const Spacer(),
-
-            // SOS Button Area
-            Column(
-              children: [
-                const Text(
-                  'In an emergency, press and hold.',
-                  style: TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    // SOS button logic
-                    final locationText = _currentPosition != null
-                        ? "Location: ${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}"
-                        : "Location: Not available";
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('SOS alert sent!\n$locationText'),
-                        duration: const Duration(seconds: 3),
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(64),
-                    backgroundColor: Colors.red,
                   ),
-                  child: const Text(
-                    'SOS',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-          ],
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// A helper widget to build the list of emergency contacts.
   Widget _buildEmergencyContactsList() {
     return ValueListenableBuilder(
-      valueListenable: Hive.box<EmergencyContact>('emergency_contacts').listenable(),
+      valueListenable: Hive.box<EmergencyContact>(
+        'emergency_contacts',
+      ).listenable(),
       builder: (context, Box<EmergencyContact> box, _) {
         final contacts = box.values.toList();
         if (contacts.isEmpty) {
@@ -261,14 +210,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// A helper widget to build a row of information with a label and a value.
   Widget _buildInfoRow(
-    BuildContext context,
-    {
+    BuildContext context, {
     required String label,
     required String value,
-  }
-  ) {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -281,7 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Flexible(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: valueColor),
               textAlign: TextAlign.right,
             ),
           ),

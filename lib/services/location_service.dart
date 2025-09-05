@@ -1,98 +1,105 @@
-// lib/services/location_service.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
-Future<Position?> getCurrentLocation() async {
-  try {
-    // Web-specific handling
-    if (kIsWeb) {
-      debugPrint("🌐 Running on web platform");
+/// A custom exception to indicate that location permissions have been denied.
+class LocationPermissionException implements Exception {
+  final String message;
+  LocationPermissionException(this.message);
+}
 
-      // Check if geolocation is supported
+/// A service that provides a stream of location updates.
+class LocationService {
+  final Stream<Position> positionStream;
+
+  LocationService() : positionStream = _createPositionStream();
+
+  static Stream<Position> _createPositionStream() {
+    late StreamController<Position> streamController;
+    StreamSubscription<Position>? positionStreamSubscription;
+
+    streamController = StreamController<Position>(
+      onListen: () async {
+        try {
+          final initialPosition = await _getCurrentLocation();
+          if (initialPosition != null) {
+            streamController.add(initialPosition);
+          }
+
+          const locationSettings = LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 20,
+          );
+
+          positionStreamSubscription = Geolocator.getPositionStream(
+            locationSettings: locationSettings,
+          ).listen(
+            (Position? position) {
+              if (position != null) {
+                streamController.add(position);
+              }
+            },
+            onError: (error) {
+              debugPrint("❌ Position stream error: $error");
+              streamController.addError(error);
+            },
+          );
+        } catch (e) {
+          debugPrint("❌ Error initializing location stream: $e");
+          streamController.addError(e);
+        }
+      },
+      onCancel: () {
+        positionStreamSubscription?.cancel();
+      },
+    );
+
+    return streamController.stream;
+  }
+
+  static Future<Position?> _getCurrentLocation() async {
+    try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        debugPrint("❌ Location services not supported or disabled in browser");
-        return null;
+        throw LocationPermissionException("Location services are disabled.");
       }
 
-      // Web browsers handle permissions differently
       LocationPermission permission = await Geolocator.checkPermission();
-      debugPrint("🔐 Current permission status: $permission");
-
       if (permission == LocationPermission.denied) {
+        // On web, we can't request permission here without a user gesture.
+        // We throw a specific exception to be handled by the UI.
+        if (kIsWeb) {
+          throw LocationPermissionException(
+            "Location permission denied. Please grant permission in your browser settings and refresh.",
+          );
+        }
         permission = await Geolocator.requestPermission();
-        debugPrint("🔐 Permission after request: $permission");
-
         if (permission == LocationPermission.denied) {
-          debugPrint("❌ Location permission denied by user");
-          return null;
+          throw LocationPermissionException("Location permission denied.");
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        debugPrint("❌ Location permissions permanently denied");
-        return null;
+        throw LocationPermissionException("Location permissions are permanently denied.");
       }
 
-      // Get position with web-friendly settings
       debugPrint("📍 Attempting to get position...");
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15), // Longer timeout for web
-      );
-
-      debugPrint(
-        "✅ Position obtained: ${position.latitude}, ${position.longitude}",
-      );
-      debugPrint("📊 Accuracy: ${position.accuracy}m");
-      return position;
-    }
-    // Mobile platform handling (original logic)
-    else {
-      debugPrint("📱 Running on mobile platform");
-
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        debugPrint("❌ Location services are disabled");
-        return null;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          debugPrint("❌ Location permissions denied");
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        debugPrint("❌ Location permissions permanently denied");
-        return null;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        timeLimit: Duration(seconds: kIsWeb ? 15 : 10),
       );
 
       debugPrint(
         "✅ Position obtained: ${position.latitude}, ${position.longitude}",
       );
       return position;
+    } catch (e) {
+      debugPrint("❌ Error getting current location: $e");
+      // Re-throw custom exceptions to be handled by the UI
+      if (e is LocationPermissionException) {
+        rethrow;
+      }
+      return null;
     }
-  } catch (e) {
-    debugPrint("❌ Error getting current location: $e");
-
-    // Provide more specific error messages
-    if (e.toString().contains('User denied')) {
-      debugPrint("🚫 User explicitly denied location permission");
-    } else if (e.toString().contains('TIMEOUT')) {
-      debugPrint("⏰ Location request timed out");
-    } else if (e.toString().contains('PERMISSION_DENIED')) {
-      debugPrint("🔒 Location permission was denied");
-    }
-
-    return null;
   }
 }
